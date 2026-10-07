@@ -1,0 +1,15 @@
+services:
+  journal:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY in .env}
+      PATIENT_NAME: ${PATIENT_NAME:-}
+      APP_PASSWORD: ${APP_PASSWORD:-}
+    volumes:
+      - journal-data:/data
+
+volumes:
+  journal-data:

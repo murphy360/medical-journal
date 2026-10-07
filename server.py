@@ -252,7 +252,7 @@ def row_to_entry(row):
 
 @app.before_request
 def require_password():
-    if not APP_PASSWORD:
+    if not APP_PASSWORD or request.path == "/healthz":
         return None
     auth = request.authorization
     if auth and auth.password == APP_PASSWORD:
@@ -294,6 +294,11 @@ def clean_messages(raw):
 @app.get("/")
 def index():
     return send_from_directory(app.static_folder, "index.html")
+
+
+@app.get("/healthz")
+def healthz():
+    return "ok"
 
 
 @app.get("/api/config")
