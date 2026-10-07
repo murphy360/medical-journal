@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Symptom Journal</title>
+<style>
+  :root {
+    --bg: #fbf8f3;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #5b6370;
+    --line: #ddd6cb;
+    --accent: #1f6f78;
+    --accent-ink: #ffffff;
+    --me: #e6f2f3;
+    --warn-bg: #fdecea;
+    --warn-ink: #8a1c12;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16191d; --card: #1f2329; --ink: #eceff3; --muted: #a8b0bb;
+      --line: #343a42; --accent: #5cc3cc; --accent-ink: #0d1517; --me: #1e3437;
+      --warn-bg: #3b1a17; --warn-ink: #ffb4a8;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 20px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5;
+  }
+  header { padding: 16px 16px 0; max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .disclaimer { color: var(--muted); font-size: 0.8rem; margin: 0 0 12px; }
+  nav { display: flex; gap: 8px; flex-wrap: wrap; }
+  nav button {
+    flex: 1 1 0; min-width: 120px; font-size: 1rem; padding: 12px; border-radius: var(--radius);
+    border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer;
+  }
+  nav button[aria-current="page"] { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  main { max-width: 820px; margin: 0 auto; padding: 16px; }
+  section[hidden] { display: none; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .chat { display: flex; flex-direction: column; gap: 12px; min-height: 120px; }
+  .bubble { padding: 12px 16px; border-radius: var(--radius); max-width: 90%; white-space: pre-wrap; }
+  .bubble.assistant { background: var(--card); border: 1px solid var(--line); align-self: flex-start; }
+  .bubble.user { background: var(--me); align-self: flex-end; }
+  .bubble.emergency { background: var(--warn-bg); color: var(--warn-ink); border-color: var(--warn-ink); font-weight: 600; }
+  .bubble.thinking { color: var(--muted); font-style: italic; }
+
+  .talk-btn {
+    display: block; width: 100%; font-size: 1.3rem; font-weight: 700; padding: 22px; margin: 16px 0 8px;
+    border: none; border-radius: 999px; background: var(--accent); color: var(--accent-ink); cursor: pointer;
+  }
+  .talk-btn.listening { background: #c0392b; color: #fff; animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { opacity: 0.75; } }
+  @media (prefers-reduced-motion: reduce) { .talk-btn.listening { animation: none; } }
+  .hint { color: var(--muted); font-size: 0.85rem; text-align: center; margin: 0 0 12px; }
+
+  textarea, input[type=date] {
+    width: 100%; font: inherit; padding: 12px; border-radius: 10px; border: 2px solid var(--line);
+    background: var(--card); color: var(--ink);
+  }
+  textarea { min-height: 90px; resize: vertical; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .row > * { flex: 1 1 160px; }
+  .btn {
+    font: inherit; font-size: 1rem; padding: 12px 16px; border-radius: 10px; cursor: pointer;
+    border: 2px solid var(--accent); background: var(--card); color: var(--ink);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .btn.danger { border-color: var(--warn-ink); color: var(--warn-ink); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  label.toggle { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; margin-top: 12px; }
+  label.toggle input { width: 24px; height: 24px; }
+  .error { background: var(--warn-bg); color: var(--warn-ink); padding: 12px; border-radius: 10px; margin: 8px 0; }
+
+  .entry h3 { margin: 0 0 4px; font-size: 1.1rem; }
+  .entry .date { color: var(--muted); font-size: 0.85rem; }
+  .entry ul { margin: 6px 0; padding-left: 22px; }
+  .entry details { margin-top: 8px; }
+  .entry summary { cursor: pointer; color: var(--accent); }
+  dl.symptom { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 6px 0 10px; font-size: 0.9rem; }
+  dl.symptom dt { color: var(--muted); }
+  dl.symptom dd { margin: 0; }
+  .empty { color: var(--muted); text-align: center; padding: 24px; }
+
+  #report-out h2 { font-size: 1.2rem; margin: 20px 0 6px; border-bottom: 2px solid var(--line); padding-bottom: 4px; }
+  #report-out h3 { font-size: 1rem; margin: 12px 0 4px; }
+  #report-out ul { margin: 4px 0; padding-left: 22px; }
+  .report-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  @media (max-width: 520px) {
+    html { font-size: 18px; }
+    dl.symptom { grid-template-columns: 1fr; }
+    dl.symptom dt { margin-top: 4px; }
+  }
+  @media print {
+    html { font-size: 12pt; }
+    body { background: #fff; color: #000; }
+    header, nav, .no-print, section:not(#view-report) { display: none !important; }
+    #view-report { display: block !important; }
+    .card { border: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="app-title">My Symptom Journal</h1>
+  <p class="disclaimer">A notebook for remembering what to tell your doctor. It does not give medical advice. In an emergency, call 911.</p>
+  <nav>
+    <button data-view="talk" aria-current="page">Talk</button>
+    <button data-view="journal">My journal</button>
+    <button data-view="report">For my doctor</button>
+  </nav>
+</header>
+
+<main>
+  <!-- TALK -->
+  <section id="view-talk">
+    <div class="card">
+      <div class="chat" id="chat" aria-live="polite"></div>
+    </div>
+    <div id="talk-error"></div>
+    <button class="talk-btn" id="talk-btn">🎤 Tap to talk</button>
+    <p class="hint" id="talk-hint">Tap the button, say how you're feeling, then tap again when you're done.</p>
+    <textarea id="text-in" placeholder="Or type here…" aria-label="Type what you want to say"></textarea>
+    <div class="row">
+      <button class="btn" id="send-btn">Send</button>
+      <button class="btn primary" id="save-btn" disabled>✔ Save to my journal</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="new-btn">Start over</button>
+    </div>
+    <label class="toggle"><input type="checkbox" id="speak-toggle" checked> Read questions out loud</label>
+  </section>
+
+  <!-- JOURNAL -->
+  <section id="view-journal" hidden>
+    <div id="journal-list"></div>
+  </section>
+
+  <!-- REPORT -->
+  <section id="view-report" hidden>
+    <div class="card no-print">
+      <p style="margin-top:0">Make a one-page summary of your journal to bring to your appointment.</p>
+      <div class="row">
+        <label>From<br><input type="date" id="rep-start"></label>
+        <label>To<br><input type="date" id="rep-end"></label>
+      </div>
+      <label class="toggle"><input type="checkbox" id="rep-include"> Also include every journal entry</label>
+      <div class="row">
+        <button class="btn primary" id="rep-btn">Make summary</button>
+        <button class="btn" id="print-btn" disabled>🖨 Print</button>
+      </div>
+    </div>
+    <div id="report-error"></div>
+    <div class="card" id="report-out" hidden></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+  const niceDate = (iso) => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+
+  async function api(path, opts = {}) {
+    const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+    let data = null;
+    try { data = await res.json(); } catch {}
+    if (!res.ok) throw new Error((data && data.error) || "Something went wrong. Please try again.");
+    return data;
+  }
+  function showError(el, msg) { $(el).innerHTML = msg ? `<div class="error">${esc(msg)}</div>` : ""; }
+
+  // ---------- navigation ----------
+  const views = ["talk", "journal", "report"];
+  document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => show(b.dataset.view)));
+  function show(view) {
+    views.forEach((v) => { $("view-" + v).hidden = v !== view; });
+    document.querySelectorAll("nav button").forEach((b) => b.dataset.view === view ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+    if (view === "journal") loadJournal();
+    if (view !== "talk") stopListening(false);
+  }
+
+  api("/api/config").then((c) => { if (c.patient_name) $("app-title").textContent = `${c.patient_name}'s Symptom Journal`; }).catch(() => {});
+
+  // ---------- talk ----------
+  const GREETING = "Hi! How are you feeling today? Tell me about anything that's been bothering you, big or small.";
+  let convo = store.get("convo", null);   // {date, messages, ready}
+  if (!convo || convo.date !== today()) convo = newConvo();
+  let busy = false;
+
+  function newConvo() { return { date: today(), messages: [], ready: false }; }
+  function persist() { store.set("convo", convo); }
+
+  function renderChat(extra) {
+    const parts = [`<div class="bubble assistant">${esc(GREETING)}</div>`];
+    for (const m of convo.messages) {
+      parts.push(`<div class="bubble ${m.role}${m.emergency ? " emergency" : ""}">${esc(m.content)}</div>`);
+    }
+    if (extra) parts.push(extra);
+    $("chat").innerHTML = parts.join("");
+    $("save-btn").disabled = busy || !convo.messages.some((m) => m.role === "user");
+    $("save-btn").textContent = convo.ready ? "✔ All done? Save to my journal" : "✔ Save to my journal";
+    $("send-btn").disabled = busy;
+    $("talk-btn").disabled = busy && !listening;
+    $("chat").lastElementChild?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  function speak(text) {
+    if (!$("speak-toggle").checked || !("speechSynthesis" in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.95;
+    speechSynthesis.speak(u);
+  }
+  $("speak-toggle").checked = store.get("speak", true);
+  $("speak-toggle").addEventListener("change", (e) => { store.set("speak", e.target.checked); if (!e.target.checked) speechSynthesis?.cancel(); });
+
+  async function send(text) {
+    text = (text || "").trim();
+    if (!text || busy) return;
+    showError("talk-error", "");
+    convo.messages.push({ role: "user", content: text });
+    persist();
+    busy = true;
+    renderChat(`<div class="bubble assistant thinking">Thinking…</div>`);
+    try {
+      const out = await api("/api/chat", {
+        method: "POST",
+        body: JSON.stringify({ entry_date: convo.date, messages: convo.messages.map(({ role, content }) => ({ role, content })) }),
+      });
+      convo.messages.push({ role: "assistant", content: out.reply, emergency: out.emergency });
+      convo.ready = out.ready_to_save;
+      persist();
+      speak(out.reply);
+    } catch (err) {
+      // Put the words back so nothing is lost.
+      convo.messages.pop();
+      persist();
+      $("text-in").value = text;
+      showError("talk-error", err.message);
+    } finally {
+      busy = false;
+      renderChat();
+    }
+  }
+
+  $("send-btn").addEventListener("click", () => { const t = $("text-in").value; $("text-in").value = ""; send(t); });
+  $("text-in").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("send-btn").click(); } });
+
+  $("new-btn").addEventListener("click", () => {
+    if (convo.messages.length && !confirm("Start over? This conversation hasn't been saved.")) return;
+    convo = newConvo(); persist(); showError("talk-error", ""); renderChat(); speak(GREETING);
+  });
+
+  $("save-btn").addEventListener("click", async () => {
+    if (busy) return;
+    stopListening(false);
+    busy = true;
+    renderChat(`<div class="bubble assistant thinking">Writing it in your journal…</div>`);
+    try {
+      await api("/api/entries", {
+        method: "POST",
+        body: JSON.stringify({ entry_date: convo.date, messages: convo.messages.map(({ role, content }) => ({ role, content })) }),
+      });
+      convo = newConvo(); persist();
+      busy = false;
+      renderChat(`<div class="bubble assistant">✔ Saved! You can see it under "My journal". Talk to me again any time.</div>`);
+      speak("Saved to your journal.");
+    } catch (err) {
+      busy = false;
+      renderChat();
+      showError("talk-error", err.message);
+    }
+  });
+
+  // ---------- speech recognition ----------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, listening = false, finalText = "", sendOnEnd = false;
+
+  if (!SR) {
+    $("talk-btn").hidden = true;
+    $("talk-hint").textContent = "Voice typing isn't available in this browser. You can type below, or use the microphone key on your phone's keyboard.";
+  }
+
+  function startListening() {
+    if (!SR || busy) return;
+    speechSynthesis?.cancel();
+    rec = new SR();
+    rec.lang = navigator.language || "en-US";
+    rec.continuous = true;
+    rec.interimResults = true;
+    finalText = $("text-in").value ? $("text-in").value.trim() + " " : "";
+    rec.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) finalText += r[0].transcript + " ";
+        else interim += r[0].transcript;
+      }
+      $("text-in").value = (finalText + interim).trim();
+    };
+    rec.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        showError("talk-error", "I need permission to use the microphone. Please allow it in your browser, or type instead.");
+      } else if (e.error !== "no-speech" && e.error !== "aborted") {
+        showError("talk-error", "I had trouble hearing. Please try again, or type instead.");
+      }
+    };
+    rec.onend = () => {
+      listening = false;
+      setTalkButton();
+      if (sendOnEnd) { sendOnEnd = false; const t = $("text-in").value; $("text-in").value = ""; send(t); }
+    };
+    try { rec.start(); listening = true; showError("talk-error", ""); } catch { listening = false; }
+    setTalkButton();
+  }
+  function stopListening(andSend) {
+    if (!rec || !listening) return;
+    sendOnEnd = andSend;
+    rec.stop();
+  }
+  function setTalkButton() {
+    $("talk-btn").classList.toggle("listening", listening);
+    $("talk-btn").textContent = listening ? "⏹ Tap when you're finished" : "🎤 Tap to talk";
+  }
+  $("talk-btn").addEventListener("click", () => (listening ? stopListening(true) : startListening()));
+
+  renderChat();
+
+  // ---------- journal ----------
+  function symptomHtml(s) {
+    const rows = [
+      ["Where", s.body_area], ["Started", s.started], ["How often", s.how_often], ["How bad", s.severity],
+      ["Helps", s.better_with], ["Worse with", s.worse_with], ["Notes", s.notes],
+    ].filter(([, v]) => v && v.trim());
+    return `<strong>${esc(s.name)}</strong><dl class="symptom">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`;
+  }
+  function list(items) { return items && items.length ? `<ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>` : ""; }
+
+  function entryHtml(e, opts = {}) {
+    return `<div class="card entry">
+      <div class="date">${esc(niceDate(e.entry_date))}</div>
+      <h3>${esc(e.title)}</h3>
+      <p>${esc(e.summary)}</p>
+      ${e.symptoms?.length ? e.symptoms.map(symptomHtml).join("") : ""}
+      ${e.daily_life ? `<p><strong>Daily life:</strong> ${esc(e.daily_life)}</p>` : ""}
+      ${e.medications_or_changes?.length ? `<strong>Medicines / changes</strong>${list(e.medications_or_changes)}` : ""}
+      ${e.questions_for_doctor?.length ? `<strong>Questions for the doctor</strong>${list(e.questions_for_doctor)}` : ""}
+      ${opts.controls ? `<details class="no-print"><summary>Show the conversation</summary>
+          ${e.transcript.map((m) => `<p><strong>${m.role === "user" ? "Me" : "Helper"}:</strong> ${esc(m.content)}</p>`).join("")}
+        </details>
+        <div class="row no-print"><button class="btn danger" data-del="${e.id}">Delete this entry</button></div>` : ""}
+    </div>`;
+  }
+
+  async function loadJournal() {
+    $("journal-list").innerHTML = `<p class="empty">Loading…</p>`;
+    try {
+      const entries = await api("/api/entries");
+      $("journal-list").innerHTML = entries.length
+        ? entries.map((e) => entryHtml(e, { controls: true })).join("")
+        : `<p class="empty">Nothing here yet. Go to "Talk" to add your first entry.</p>`;
+    } catch (err) {
+      $("journal-list").innerHTML = `<div class="error">${esc(err.message)}</div>`;
+    }
+  }
+  $("journal-list").addEventListener("click", async (ev) => {
+    const id = ev.target.dataset?.del;
+    if (!id || !confirm("Delete this entry? This can't be undone.")) return;
+    await api(`/api/entries/${id}`, { method: "DELETE" }).catch(() => {});
+    loadJournal();
+  });
+
+  // ---------- report ----------
+  const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
+  $("rep-start").value = new Date(monthAgo.getTime() - monthAgo.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  $("rep-end").value = today();
+
+  $("rep-btn").addEventListener("click", async () => {
+    showError("report-error", "");
+    $("rep-btn").disabled = true; $("rep-btn").textContent = "Working on it…";
+    $("print-btn").disabled = true;
+    try {
+      const r = await api("/api/report", { method: "POST", body: JSON.stringify({ start: $("rep-start").value, end: $("rep-end").value }) });
+      const name = $("app-title").textContent.replace(/'s Symptom Journal$|^My Symptom Journal$/, "");
+      $("report-out").innerHTML = `
+        <div class="report-head">
+          <div><strong>Symptom summary${name ? " — " + esc(name) : ""}</strong><br>
+          ${esc(niceDate(r.start))} to ${esc(niceDate(r.end))} · ${r.entry_count} journal ${r.entry_count === 1 ? "entry" : "entries"}</div>
+          <div class="date">Printed ${esc(niceDate(today()))}</div>
+        </div>
+        <p><em>Written from the patient's own journal notes. Not a medical assessment.</em></p>
+        <h2>Overview</h2><p>${esc(r.overview)}</p>
+        ${r.questions_for_doctor.length ? `<h2>Questions I want to ask</h2>${list(r.questions_for_doctor)}` : ""}
+        ${r.symptoms.length ? `<h2>Symptoms</h2>${r.symptoms.map((s) => `<h3>${esc(s.name)}</h3>${list(s.details)}`).join("")}` : ""}
+        ${r.medications_or_changes.length ? `<h2>Medicines and changes I mentioned</h2>${list(r.medications_or_changes)}` : ""}
+        ${$("rep-include").checked ? `<h2>Journal entries</h2>${r.entries.map((e) => entryHtml(e)).join("")}` : ""}`;
+      $("report-out").hidden = false;
+      $("print-btn").disabled = false;
+    } catch (err) {
+      showError("report-error", err.message);
+    } finally {
+      $("rep-btn").disabled = false; $("rep-btn").textContent = "Make summary";
+    }
+  });
+  $("print-btn").addEventListener("click", () => window.print());
+})();
+</script>
+</body>
+</html>
